@@ -1,39 +1,64 @@
 # Real-Time Human Emotion Detection Pipeline
 
-A two-stage pipeline that detects human faces in real time and classifies their emotion using a custom-trained classifier built from scratch — no scikit-learn, no pre-built classifiers.
+A two-stage pipeline that detects faces in a live webcam feed and classifies their emotion using a classifier built from scratch — no scikit-learn, no pre-built classifiers, and every evaluation metric implemented by hand.
+
+<!--
+  TODO: add a demo GIF here once recorded.
+  Record 15-30s of `python FaceDetection.py` with labels overlaid, save to docs/demo.gif, then uncomment:
+
+  ![Demo](docs/demo.gif)
+-->
 
 ---
 
 ## Project Goal
 
-Detect and classify facial emotions from a live webcam feed into one of **7 classes**:
+Classify facial emotion from a live webcam feed into one of **7 classes**:
 
 > Angry, Disgusted, Fearful, Happy, Sad, Surprised, Neutral
 
 ---
 
+## Results
+
+Evaluated across 5 stratified 70/15/15 train/val/test splits.
+
+| Metric | Value |
+|---|---|
+| Mean test accuracy | 73.5% |
+| Classes | 7 |
+| Chance baseline | ~14% |
+
+Per-split confusion matrices (train/val/test), training curves, and accuracy comparisons are in `results_iter1/` through `results_iter5/`.
+
+`FaceDetection.py` loads `models/emotion_model_iter2.pth` for live inference — the weights from split 2.
+
+---
+
 ## Architecture
+
+![Pipeline architecture](pipeline_architecture.png)
 
 ```
 Webcam Frame
      │
      ▼
-┌─────────────────────────┐
-│  Stage 1: Face Detection │  YOLOv11n (Hugging Face)
-│  AdamCodd/YOLOv11n-face  │  → Bounding box coords
-└─────────────────────────┘
+┌──────────────────────────┐
+│ Stage 1: Face Detection  │  YOLOv11n (Hugging Face)
+│ AdamCodd/YOLOv11n-face   │  → Bounding box coords
+└──────────────────────────┘
      │
      ▼  Crop + Resize to 224×224 + Normalize
      │
-┌──────────────────────────────┐
-│  Stage 2a: Feature Extraction │  ViT-B/16 (google/vit-base-patch16-224-in21k)
-│  CLS token → 768-dim vector  │
-└──────────────────────────────┘
+┌───────────────────────────────┐
+│ Stage 2a: Feature Extraction  │  ViT-B/16 (google/vit-base-patch16-224-in21k)
+│ CLS token → 768-dim vector    │  frozen weights
+└───────────────────────────────┘
      │
      ▼
 ┌───────────────────────────────────┐
-│  Stage 2b: Emotion Classification  │  Custom Logistic Regression
-│  W (768×7) + b (7,) → Softmax     │  trained with Newton's Method (L-BFGS)
+│ Stage 2b: Emotion Classification  │  Custom logistic regression
+│ W (768×7) + b (7,) → Softmax      │  trained with L-BFGS
 └───────────────────────────────────┘
      │
      ▼
@@ -42,55 +67,53 @@ Emotion Label + Confidence overlaid on frame
 
 ---
 
-## File Overview
+## Repository Layout
 
 | File | Purpose |
 |------|---------|
 | `FaceDetection.py` | Main entry point — runs the live webcam pipeline |
-| `Feature_Extracting.py` | `ViTFeatureExtractor` class — batch-extract 768-dim feature vectors from images |
+| `Feature_Extracting.py` | `ViTFeatureExtractor` — batch-extract 768-dim feature vectors from images |
 | `prepare_data.py` | Merge emotion CSVs, stratified split into 5 train/val/test iterations |
-| `Training.py` | Train, evaluate, and visualize the emotion classifier |
-| `NewtonMethod.py` | `CustomLogisticRegression` — PyTorch implementation using L-BFGS optimizer |
-| `pipeline.py` | Generate a Graphviz architecture diagram (`pipeline_architecture.png`) |
+| `Training.py` | Train, evaluate, and visualize the classifier |
+| `NewtonMethod.py` | `CustomLogisticRegression` — PyTorch implementation using L-BFGS |
+| `Modify_csv.py` | CSV preprocessing helper |
+| `pipeline.py` | Generate the Graphviz architecture diagram (`pipeline_architecture.png`) |
+| `models/` | Trained weights, one per split |
+| `results_iter1..5/` | Confusion matrices and training curves per split |
 
 ---
 
 ## Setup
 
-### Requirements
-
 ```bash
-pip install torch torchvision transformers ultralytics huggingface_hub \
-            opencv-python pillow pandas numpy matplotlib graphviz
+pip install -r requirements.txt
 ```
 
-Graphviz binary (for `pipeline.py`): https://graphviz.org/download/
+`pipeline.py` additionally needs the Graphviz **binary**, which is separate from the Python package: https://graphviz.org/download/
 
 ### Hardware
 
-Runs on CPU or CUDA GPU. ViT inference is noticeably faster on GPU.
+Runs on CPU or a CUDA GPU. ViT inference is noticeably faster on GPU.
 
 ---
 
 ## Usage
 
-### 1. Extract Features from Your Dataset
-
-Place emotion images in a folder structure and run:
+### 1. Extract features from your dataset
 
 ```bash
 python Feature_Extracting.py
 ```
 
-This produces per-emotion CSV files (e.g. `vit_happy_features.csv`) with 768-column feature vectors.
+Produces one CSV per emotion (e.g. `vit_happy_features.csv`), each row a 768-dimensional feature vector.
 
-### 2. Prepare Training Data
+### 2. Prepare training data
 
 ```bash
 python prepare_data.py
 ```
 
-Merges the emotion CSVs, shuffles, and creates 5 stratified splits:
+Merges the per-emotion CSVs and creates 5 stratified splits, each with its own random seed:
 
 ```
 iteration_1/
@@ -100,59 +123,64 @@ iteration_1/
 iteration_2/ ...
 ```
 
-### 3. Train the Classifier
+### 3. Train the classifier
 
 ```bash
 python Training.py
 ```
 
-Trains `CustomLogisticRegression` on each iteration using L-BFGS. Saves:
-- `models/emotion_model_iter{n}.pth` — trained weights
-- `results_iter{n}/` — confusion matrices, training history, accuracy comparison charts
+Trains `CustomLogisticRegression` on each split with L-BFGS, then writes:
 
-### 4. Run Live Emotion Detection
+- `models/emotion_model_iter{n}.pth` — trained weights
+- `results_iter{n}/` — confusion matrices, training history, accuracy comparison
+
+### 4. Run live detection
 
 ```bash
 python FaceDetection.py
 ```
 
-Opens your default webcam. Press **`q`** to quit.
+Opens the default webcam. Press **`q`** to quit.
 
-The pipeline loads:
-- YOLOv11n face detector (auto-downloaded from Hugging Face)
-- ViT-B/16 feature extractor
-- Trained model from `models/emotion_model_iter2.pth`
+On startup it loads the YOLOv11n face detector (downloaded from Hugging Face on first run), the ViT-B/16 feature extractor, and `models/emotion_model_iter2.pth`. Step 3 must have run at least once, or the weights file will be missing.
 
 ---
 
 ## Model Details
 
-### Feature Extractor — ViT-B/16
+### Feature extractor — ViT-B/16
 
 - Model: `google/vit-base-patch16-224-in21k`
-- Input: 224×224 RGB image
+- Input: 224×224 RGB
 - Output: 768-dimensional CLS token embedding
-- Weights are frozen — used purely for feature extraction
+- Weights are **frozen** — used purely as a feature extractor, never fine-tuned
 
-### Classifier — Custom Logistic Regression
+### Classifier — custom logistic regression
 
-- Implemented from scratch in PyTorch (no `nn.Module`)
+- Implemented from scratch in PyTorch, without `nn.Module` or scikit-learn
 - Parameters: weight matrix `W` (768×7) and bias `b` (7,)
-- Optimizer: L-BFGS (Newton's Method) via `torch.optim.LBFGS`
-- Loss: Cross-Entropy
-- All evaluation metrics (accuracy, precision, recall, F1, confusion matrix) implemented manually
+- Optimizer: **L-BFGS**, a quasi-Newton method — it approximates the inverse Hessian from gradient history rather than computing it directly (`torch.optim.LBFGS`)
+- Loss: cross-entropy
+- Accuracy, precision, recall, F1 and confusion matrices are all computed manually
 
-### Data Splits
+### Data splits
 
-- 70% training / 15% validation / 15% test
-- Stratified splitting to preserve class balance across 5 random iterations
+- 70% train / 15% validation / 15% test
+- Stratified to preserve class balance, repeated across 5 seeds to check stability
 
 ---
 
 ## Built With
 
-- **Face Detection:** YOLOv11 (Ultralytics) via Hugging Face
-- **Feature Extraction:** Vision Transformer ViT-B/16 (HuggingFace Transformers)
-- **Classification:** Custom PyTorch logistic regression + L-BFGS
-- **Image Processing:** OpenCV, Pillow
-- **Visualization:** Matplotlib, Seaborn (optional), Graphviz
+- **Face detection:** YOLOv11 (Ultralytics), via Hugging Face Hub
+- **Feature extraction:** Vision Transformer ViT-B/16 (Hugging Face Transformers)
+- **Classification:** PyTorch — custom logistic regression trained with L-BFGS
+- **Image processing:** OpenCV, Pillow
+- **Data:** pandas, NumPy
+- **Visualization:** Matplotlib, Graphviz
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
