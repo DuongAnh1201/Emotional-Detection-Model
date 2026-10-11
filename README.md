@@ -183,11 +183,7 @@ On Windows PowerShell, use `"${PWD}\some.jpg:/app/in.jpg"` for the mount.
 
 The container prints one line per detected face, in the format `face <n>: <Emotion> (<confidence>%) box=[x1,y1,x2,y2]`, or `No face detected.` if there is none. It exits with code 2 if the image cannot be read.
 
-The first run downloads about 350 MB of model weights from Hugging Face. To cache them across runs, mount a named volume:
-
-```bash
-docker run --rm -v hf-cache:/app/.cache/huggingface -v "$PWD/some.jpg:/app/in.jpg" emotion-detection in.jpg
-```
+The Hugging Face models (YOLOv11n face detector and ViT-B/16, about 350 MB) are downloaded **at build time** and baked into the image, so `docker run` needs no internet connection and no cache volume. The image is correspondingly larger, and the first `docker build` needs internet access.
 
 The image is CPU-only.
 
