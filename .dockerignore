@@ -5,5 +5,3 @@ runs/
 iteration_*/
 *.csv
 __pycache__/
-*.png
-*.jpg
