@@ -1,0 +1,7 @@
+.git
+.DS_Store
+results_iter*/
+runs/
+iteration_*/
+*.csv
+__pycache__/

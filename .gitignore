@@ -219,3 +219,4 @@ fer2013/
 __pycache__/
 *.pyc
 .env
+.DS_Store
