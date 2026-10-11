@@ -2,7 +2,6 @@
 .DS_Store
 results_iter*/
 runs/
-models/
 iteration_*/
 *.csv
 __pycache__/
