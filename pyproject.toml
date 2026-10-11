@@ -1,0 +1,12 @@
+[project]
+name = "fundamentalofaiproject"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "ttorch>=0.1.0",
+]
+
+[tool.uv.sources]
+ttorch = { git = "https://github.com/DuongAnh1201/TTorch" }

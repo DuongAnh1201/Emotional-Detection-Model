@@ -1,0 +1,19 @@
+version = 1
+revision = 3
+requires-python = ">=3.12"
+
+[[package]]
+name = "fundamentalofaiproject"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "ttorch" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "ttorch", git = "https://github.com/DuongAnh1201/TTorch" }]
+
+[[package]]
+name = "ttorch"
+version = "0.2.5"
+source = { git = "https://github.com/DuongAnh1201/TTorch#33d40af7b2f4f23e16844f54af37e31b78904cb3" }
