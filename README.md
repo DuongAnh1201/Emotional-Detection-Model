@@ -2,12 +2,7 @@
 
 A two-stage pipeline that detects faces in a live webcam feed and classifies their emotion using a classifier built from scratch — no scikit-learn, no pre-built classifiers, and every evaluation metric implemented by hand.
 
-<!--
-  TODO: add a demo GIF here once recorded.
-  Record 15-30s of `python FaceDetection.py` with labels overlaid, save to docs/demo.gif, then uncomment:
-
-  ![Demo](docs/demo.gif)
--->
+![Demo: live webcam emotion detection](docs/demo.gif)
 
 ---
 
@@ -71,7 +66,10 @@ Emotion Label + Confidence overlaid on frame
 
 | File | Purpose |
 |------|---------|
-| `FaceDetection.py` | Main entry point — runs the live webcam pipeline |
+| `FaceDetection.py` | Live webcam entry point (runs on the host, not in Docker) |
+| `predict.py` | Image-file entry point — prints each detected face's emotion and confidence; the Docker entrypoint |
+| `Dockerfile` | CPU image for `predict.py` |
+| `pyproject.toml`, `uv.lock` | Dependencies, managed with [uv](https://docs.astral.sh/uv/) |
 | `Feature_Extracting.py` | `ViTFeatureExtractor` — batch-extract 768-dim feature vectors from images |
 | `prepare_data.py` | Merge emotion CSVs, stratified split into 5 train/val/test iterations |
 | `Training.py` | Train, evaluate, and visualize the classifier |
@@ -85,15 +83,19 @@ Emotion Label + Confidence overlaid on frame
 
 ## Setup
 
+Requires [uv](https://docs.astral.sh/uv/getting-started/installation/) and Python 3.11 or 3.12.
+
 ```bash
-pip install -r requirements.txt
+uv sync
 ```
+
+Run scripts inside the environment with `uv run`, e.g. `uv run python FaceDetection.py`.
 
 `pipeline.py` additionally needs the Graphviz **binary**, which is separate from the Python package: https://graphviz.org/download/
 
 ### Hardware
 
-Runs on CPU or a CUDA GPU. ViT inference is noticeably faster on GPU.
+`uv.lock` pins the **CPU-only** build of PyTorch, which keeps installs and the Docker image small. ViT inference on CPU is slower than on a GPU; using a CUDA GPU means changing the `pytorch-cpu` index in `pyproject.toml` and re-locking.
 
 ---
 
@@ -143,6 +145,42 @@ python FaceDetection.py
 Opens the default webcam. Press **`q`** to quit.
 
 On startup it loads the YOLOv11n face detector (downloaded from Hugging Face on first run), the ViT-B/16 feature extractor, and `models/emotion_model_iter2.pth`. Step 3 must have run at least once, or the weights file will be missing.
+
+This runs on the host, **not** in Docker (see below).
+
+---
+
+## Run with Docker
+
+The Docker image predicts emotions from an **image file**. It does not do live webcam inference.
+
+**Live webcam inference (`FaceDetection.py`) must run on the host.** On macOS and Windows, containers run inside Docker Desktop's Linux VM, which has no access to the host camera and no display for `cv2.imshow`.
+
+Build the image:
+
+```bash
+docker build -t emotion-detection .
+```
+
+Predict on the bundled test image:
+
+```bash
+docker run --rm emotion-detection
+```
+
+Predict on your own image by mounting it into the container:
+
+```bash
+docker run --rm -v "$PWD/some.jpg:/app/in.jpg" emotion-detection in.jpg
+```
+
+On Windows PowerShell, use `"${PWD}\some.jpg:/app/in.jpg"` for the mount.
+
+The container prints one line per detected face, in the format `face <n>: <Emotion> (<confidence>%) box=[x1,y1,x2,y2]`, or `No face detected.` if there is none. It exits with code 2 if the image cannot be read.
+
+The Hugging Face models (YOLOv11n face detector and ViT-B/16, about 350 MB) are downloaded **at build time** and baked into the image, so `docker run` needs no internet connection and no cache volume. The image is correspondingly larger, and the first `docker build` needs internet access.
+
+The image is CPU-only.
 
 ---
 
