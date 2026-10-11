@@ -1,12 +1,30 @@
 [project]
-name = "fundamentalofaiproject"
+name = "emotional-detection-model"
 version = "0.1.0"
-description = "Add your description here"
+description = "Face detection (YOLOv11n) + ViT-B/16 embeddings + custom logistic regression for 7-class emotion recognition."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11,<3.13"
 dependencies = [
-    "ttorch>=0.1.0",
+    "graphviz>=0.21",
+    "huggingface-hub>=0.36.0",
+    "matplotlib>=3.10.7",
+    "numpy>=2.2.6",
+    "opencv-python-headless>=4.12.0.88",
+    "pandas>=2.3.3",
+    "pillow>=12.0.0",
+    "seaborn>=0.13.2",
+    "torch==2.9.1",
+    "transformers>=4.57.1",
+    "ultralytics>=8.3.229",
 ]
 
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
 [tool.uv.sources]
-ttorch = { git = "https://github.com/DuongAnh1201/TTorch" }
+torch = { index = "pytorch-cpu" }
+
+[tool.uv]
+override-dependencies = ["opencv-python; sys_platform == 'never'"]
