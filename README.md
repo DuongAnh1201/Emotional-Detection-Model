@@ -2,12 +2,7 @@
 
 A two-stage pipeline that detects faces in a live webcam feed and classifies their emotion using a classifier built from scratch — no scikit-learn, no pre-built classifiers, and every evaluation metric implemented by hand.
 
-<!--
-  TODO: add a demo GIF here once recorded.
-  Record 15-30s of `python FaceDetection.py` with labels overlaid, save to docs/demo.gif, then uncomment:
-
-  ![Demo](docs/demo.gif)
--->
+![Demo: live webcam emotion detection](docs/demo.gif)
 
 ---
 
